@@ -18,7 +18,7 @@ class Product(Base):
     brand = Column(String(100))  # 品牌名称
     origin = Column(String(200))  # 产地
     description = Column(Text)  # 产品描述
-    image_url = Column(String(500))  # 产品图片
+    image_url = Column(Text)  # 产品图片（可存base64 Data-URL）
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # 关联记录
@@ -40,6 +40,8 @@ class FarmInfo(Base):
     story = Column(Text)  # 品牌故事
     video_url = Column(String(500))  # 视频链接
 
+    cert_image = Column(Text)  # 认证证书图片（base64 Data-URL）
+
     product = relationship("Product", back_populates="farm_info")
 
 
@@ -53,7 +55,7 @@ class ProductionRecord(Base):
     date = Column(DateTime, default=datetime.utcnow)  # 操作日期
     operator = Column(String(50))  # 操作人
     description = Column(Text)  # 操作描述
-    image_url = Column(String(500))  # 操作图片
+    image_url = Column(Text)  # 操作图片（可存base64 Data-URL）
 
     product = relationship("Product", back_populates="production_records")
 
@@ -67,7 +69,7 @@ class QualityRecord(Base):
     check_date = Column(DateTime, default=datetime.utcnow)  # 质检日期
     inspector = Column(String(50))  # 质检员
     result = Column(String(20))  # 结果（合格/不合格）
-    report_url = Column(String(500))  # 质检报告链接
+    report_url = Column(Text)  # 质检报告链接（可存base64 Data-URL）
     notes = Column(Text)  # 备注
 
     product = relationship("Product", back_populates="quality_records")

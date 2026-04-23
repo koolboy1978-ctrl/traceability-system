@@ -45,6 +45,7 @@ class FarmInfoBase(BaseModel):
     certification: Optional[str] = None
     story: Optional[str] = None
     video_url: Optional[str] = None
+    cert_image: Optional[str] = None  # 认证证书图片（base64 Data-URL）
 
 
 class ProductionRecordBase(BaseModel):
@@ -374,19 +375,13 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/v1/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """上传文件（质检报告等）"""
-    # 生成唯一文件名
-    file_ext = os.path.splitext(file.filename)[1]
-    unique_name = f"{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join(UPLOAD_DIR, unique_name)
-    
-    # 保存文件
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # 返回文件URL
-    file_url = f"/uploads/{unique_name}"
-    return {"url": file_url, "filename": file.filename}
+    """上传图片文件，返回 base64 Data-URL（直接可存数据库）"""
+    content = await file.read()
+    import base64
+    b64 = base64.b64encode(content).decode("utf-8")
+    mime = file.content_type or "image/jpeg"
+    data_url = f"data:{mime};base64,{b64}"
+    return {"url": data_url, "filename": file.filename, "size": len(content)}
 
 
 @app.get("/uploads/{filename}")

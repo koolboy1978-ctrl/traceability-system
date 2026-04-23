@@ -275,6 +275,10 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
+        .uploaded-file img {
+            border-radius: 4px;
+            object-fit: cover;
+        }
         @media (max-width: 768px) {
             .form-row { grid-template-columns: 1fr; }
             .batch-config { grid-template-columns: 1fr; }
@@ -390,8 +394,13 @@
                             <input type="text" id="origin" placeholder="如：山东省烟台市">
                         </div>
                         <div class="form-group">
-                            <label>产品图片URL</label>
-                            <input type="text" id="image_url" placeholder="https://...">
+                            <label>产品图片</label>
+                            <div class="file-upload" id="image-upload" onclick="this.querySelector('input').click()">
+                                <input type="file" accept="image/*" onchange="handleImageUpload(this)">
+                                <p id="image-upload-text">📷 点击上传产品图片</p>
+                                <img id="image-preview" style="display:none;max-width:100%;border-radius:8px;margin-top:8px;">
+                            </div>
+                            <input type="hidden" id="image_url" value="">
                         </div>
                     </div>
                     <div class="form-group">
@@ -426,6 +435,15 @@
                     <div class="form-group">
                         <label>品牌故事</label>
                         <textarea id="farm_story" placeholder="讲述农场历史、种植理念..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>认证证书图片</label>
+                        <div class="file-upload" id="cert-upload" onclick="this.querySelector('input').click()">
+                            <input type="file" accept="image/*" onchange="handleCertUpload(this)">
+                            <p id="cert-upload-text">🏅 点击上传认证证书图片</p>
+                            <img id="cert-preview" style="display:none;max-width:100%;border-radius:8px;margin-top:8px;">
+                        </div>
+                        <input type="hidden" id="cert_image" value="">
                     </div>
                 </div>
                 
@@ -687,29 +705,19 @@
         async function uploadFile(input, callback) {
             const file = input.files[0];
             if (!file) return;
-            
-            // 检查文件类型
             const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
             if (!allowedTypes.includes(file.type)) {
                 showToast('仅支持 JPG、PNG、PDF 格式', 'error');
                 return;
             }
-            
-            // 检查文件大小（最大10MB）
             if (file.size > 10 * 1024 * 1024) {
                 showToast('文件大小不能超过10MB', 'error');
                 return;
             }
-            
             const formData = new FormData();
             formData.append('file', file);
-            
             try {
-                const response = await fetch(`${API_BASE}/api/v1/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
+                const response = await fetch(`${API_BASE}/api/v1/upload`, { method: 'POST', body: formData });
                 const data = await response.json();
                 if (response.ok) {
                     callback(data.url);
@@ -720,6 +728,78 @@
             } catch (error) {
                 showToast('❌ ' + error.message, 'error');
             }
+        }
+
+        // 处理产品图片上传
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { showToast('图片不能超过10MB', 'error'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result; // base64 Data-URL
+                document.getElementById('image_url').value = dataUrl;
+                const preview = document.getElementById('image-preview');
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+                document.getElementById('image-upload-text').textContent = '✅ 已上传 ' + file.name + '（点击可更换）';
+                showToast('✅ 产品图片上传成功');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 处理认证证书上传
+        function handleCertUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { showToast('图片不能超过10MB', 'error'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                document.getElementById('cert_image').value = dataUrl;
+                const preview = document.getElementById('cert-preview');
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+                document.getElementById('cert-upload-text').textContent = '✅ 已上传 ' + file.name + '（点击可更换）';
+                showToast('✅ 认证证书上传成功');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 处理质检报告上传（返回base64 Data-URL）
+        function uploadQualityReport(input, recordId) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { showToast('文件不能超过10MB', 'error'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const container = document.getElementById(`quality-files-${recordId}`);
+                if (dataUrl.startsWith('data:image')) {
+                    container.innerHTML = `<div class="uploaded-file"><img src="${dataUrl}" style="max-width:120px;max-height:80px;border-radius:4px;"><button onclick="this.parentElement.remove()">✕</button></div>`;
+                } else {
+                    container.innerHTML = `<div class="uploaded-file"><a href="${dataUrl}" target="_blank">${file.name}</a><button onclick="this.parentElement.remove()">✕</button></div>`;
+                }
+                input.dataset.url = dataUrl;
+                showToast('✅ 上传成功');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 处理生产记录图片上传
+        function uploadProdImage(input, recordId) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { showToast('图片不能超过10MB', 'error'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const container = document.getElementById(`prod-files-${recordId}`);
+                container.innerHTML = `<div class="uploaded-file"><img src="${dataUrl}" style="max-width:120px;max-height:80px;border-radius:4px;"><button onclick="this.parentElement.remove()">✕</button></div>`;
+                input.dataset.url = dataUrl;
+                showToast('✅ 上传成功');
+            };
+            reader.readAsDataURL(file);
         }
         
         // 添加生产记录
@@ -889,7 +969,8 @@
                         location: document.getElementById('farm_location').value,
                         area: parseFloat(document.getElementById('farm_area').value) || null,
                         certification: document.getElementById('farm_certification').value,
-                        story: document.getElementById('farm_story').value
+                        story: document.getElementById('farm_story').value,
+                        cert_image: document.getElementById('cert_image').value || null
                     },
                     production_records: productionRecords,
                     quality_records: qualityRecords
@@ -928,7 +1009,8 @@
                         location: document.getElementById('farm_location').value,
                         area: parseFloat(document.getElementById('farm_area').value) || null,
                         certification: document.getElementById('farm_certification').value,
-                        story: document.getElementById('farm_story').value
+                        story: document.getElementById('farm_story').value,
+                        cert_image: document.getElementById('cert_image').value || null
                     },
                     production_records: productionRecords,
                     quality_records: qualityRecords
