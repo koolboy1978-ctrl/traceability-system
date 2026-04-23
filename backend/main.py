@@ -48,7 +48,6 @@ class ProductionRecordBase(BaseModel):
 
 
 class QualityRecordBase(BaseModel):
-    stage: Optional[str] = None
     check_date: Optional[str] = None
     inspector: Optional[str] = None
     result: Optional[str] = "合格"
