@@ -113,7 +113,7 @@ def startup_event():
                 conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT"))
                 conn.execute(text("ALTER TABLE production_records ADD COLUMN IF NOT EXISTS image_url TEXT"))
                 conn.execute(text("ALTER TABLE quality_records ADD COLUMN IF NOT EXISTS report_url TEXT"))
-                conn.execute(text("ALTER TABLE farm_infos ADD COLUMN IF NOT EXISTS cert_image TEXT"))
+                conn.execute(text("ALTER TABLE farm_info ADD COLUMN IF NOT EXISTS cert_image TEXT"))
             print("✅ 数据库字段迁移完成")
         except Exception as e:
             print(f"⚠️ 迁移跳过: {e}")
