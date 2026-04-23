@@ -6,20 +6,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# 数据库路径
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "trace.db")
+# 数据库 URL - 优先使用 Railway 的 PostgreSQL，否则使用本地 SQLite
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/trace.db")
 
-# 确保 data 目录存在
-os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
-
-# 数据库 URL
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+# 如果是 PostgreSQL，需要替换协议
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # 创建引擎
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    # 确保 data 目录存在
+    os.makedirs("./data", exist_ok=True)
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # 创建会话工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
