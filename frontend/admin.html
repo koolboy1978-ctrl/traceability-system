@@ -244,6 +244,8 @@
         }
         .btn-view { background: #e3f2fd; color: #1976d2; }
         .btn-qr { background: #f3e5f5; color: #7b1fa2; }
+        .btn-del { background: #ffebee; color: #c62828; }
+        .btn-del:hover { background: #ffcdd2; }
         
         /* 提示消息 */
         .toast {
@@ -1004,7 +1006,7 @@
                 }
                 
                 container.innerHTML = products.map(p => `
-                    <div class="product-item">
+                    <div class="product-item" id="item-${p.id}">
                         <div class="product-info">
                             <h4>${p.name}</h4>
                             <p>编码：${p.code} | 类别：${p.category || '未分类'} | 产地：${p.origin || '未知'}</p>
@@ -1012,6 +1014,7 @@
                         <div class="product-actions">
                             <button class="btn-view" onclick="viewProduct('${p.code}')">查看</button>
                             <button class="btn-qr" onclick="generateQRFor('${p.code}')">二维码</button>
+                            <button class="btn-del" onclick="deleteProduct(${p.id}, '${p.code}')">删除</button>
                         </div>
                     </div>
                 `).join('');
@@ -1024,6 +1027,27 @@
         // 查看产品
         function viewProduct(code) {
             window.open(`https://koolboy1978-ctrl.github.io/traceability-system/?code=${code}`, '_blank');
+        }
+        
+        // 删除产品
+        async function deleteProduct(id, code) {
+            if (!confirm(`确定要删除产品 ${code} 吗？\n此操作不可恢复！`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/products/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showToast(`✅ 已删除 ${code}`);
+                    // 从列表移除
+                    const el = document.getElementById(`item-${id}`);
+                    if (el) el.style.opacity = '0.3';
+                    setTimeout(() => { el?.remove(); }, 500);
+                } else {
+                    const err = await response.json();
+                    showToast('❌ ' + (err.detail || '删除失败'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ 网络错误：' + error.message, 'error');
+            }
         }
         
         // 加载产品到二维码选择框
