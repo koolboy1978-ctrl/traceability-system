@@ -47,6 +47,8 @@ class ProductionRecordBase(BaseModel):
 
 
 class QualityRecordBase(BaseModel):
+    stage: Optional[str] = None
+    check_date: Optional[str] = None
     inspector: Optional[str] = None
     result: Optional[str] = "合格"
     report_url: Optional[str] = None
@@ -160,11 +162,15 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     
     # 创建生产记录
     for record in production_records_data or []:
+        if 'date' in record and record['date']:
+            record['date'] = datetime.fromisoformat(record['date'].replace('Z', '+00:00'))
         prod_record = ProductionRecord(product_id=db_product.id, **record)
         db.add(prod_record)
     
     # 创建质检记录
     for record in quality_records_data or []:
+        if 'check_date' in record and record['check_date']:
+            record['check_date'] = datetime.fromisoformat(record['check_date'].replace('Z', '+00:00'))
         quality_record = QualityRecord(product_id=db_product.id, **record)
         db.add(quality_record)
     
