@@ -558,47 +558,71 @@
             
             const btn = event.target;
             btn.disabled = true;
-            btn.textContent = '生成中...';
+            const progressEl = document.getElementById('progressBar');
+            const fillEl = document.getElementById('progressFill');
             
             try {
-                const params = new URLSearchParams({
-                    prefix, start: start.toString(), count: count.toString()
-                });
-                
-                if (format === 'zip') {
-                    params.append('size', size.toString());
-                    params.append('with_label', withLabel.toString());
+                // 每批最多500个（避免超时）
+                const BATCH_SIZE = 500;
+                const batches = [];
+                for (let s = start; s < start + count; s += BATCH_SIZE) {
+                    const batchCount = Math.min(BATCH_SIZE, start + count - s);
+                    batches.push({ start: s, count: batchCount });
                 }
                 
-                const endpoint = format === 'pdf' ? '/api/v1/batch-qr/pdf' : '/api/v1/batch-qr';
-                const response = await fetch(`${API_BASE}${endpoint}?${params}`, {
-                    method: 'POST'
-                });
+                progressEl.classList.add('show');
                 
-                if (!response.ok) {
-                    throw new Error('生成失败');
+                if (batches.length === 1) {
+                    // 单批次直接下载
+                    await downloadBatch(prefix, batches[0].start, batches[0].count, size, withLabel, format);
+                    fillEl.style.width = '100%';
+                } else {
+                    // 多批次：逐个下载
+                    for (let i = 0; i < batches.length; i++) {
+                        const b = batches[i];
+                        btn.textContent = `生成中 ${i+1}/${batches.length}...`;
+                        fillEl.style.width = `${((i) / batches.length) * 100}%`;
+                        await downloadBatch(prefix, b.start, b.count, size, withLabel, format);
+                    }
+                    fillEl.style.width = '100%';
+                    showToast(`✅ 已生成 ${count} 个二维码（分${batches.length}个文件下载）`);
                 }
-                
-                // 下载文件
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = format === 'pdf' ? 
-                    `qrcodes_${prefix}_${start}_${start+count-1}.pdf` :
-                    `qrcodes_${prefix}_${start}_${start+count-1}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                showToast(`✅ 已生成 ${count} 个二维码`);
             } catch (error) {
                 showToast('❌ ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = format === 'pdf' ? '📄 生成PDF打印版' : '📦 生成ZIP包（单独文件）';
+                setTimeout(() => progressEl.classList.remove('show'), 2000);
             }
+        }
+        
+        async function downloadBatch(prefix, start, count, size, withLabel, format) {
+            const params = new URLSearchParams({
+                prefix, start: start.toString(), count: count.toString()
+            });
+            if (format === 'zip') {
+                params.append('size', size.toString());
+                params.append('with_label', withLabel.toString());
+            }
+            
+            const endpoint = format === 'pdf' ? '/api/v1/batch-qr/pdf' : '/api/v1/batch-qr';
+            const response = await fetch(`${API_BASE}${endpoint}?${params}`, { method: 'POST' });
+            
+            if (!response.ok) {
+                throw new Error(`生成失败 (${response.status})`);
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = format === 'pdf' ? 
+                `qrcodes_${prefix}_${start}_${start+count-1}.pdf` :
+                `qrcodes_${prefix}_${start}_${start+count-1}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
         
         // 上传文件

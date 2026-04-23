@@ -142,6 +142,8 @@ def generate_print_layout(codes, base_url, layout='a4', cols=5, rows=8):
         (page_height - 2 * margin) / rows
     ) * 0.9  # 留一些间距
     
+    import tempfile
+    
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=page_size)
     
@@ -159,13 +161,13 @@ def generate_print_layout(codes, base_url, layout='a4', cols=5, rows=8):
         # 生成二维码图像
         img = generate_single_qr(code, base_url, int(qr_size * 2.83), with_label=True)
         
-        # 保存临时图像
-        temp_buffer = io.BytesIO()
-        img.save(temp_buffer, format='PNG')
-        temp_buffer.seek(0)
+        # 保存为临时文件（reportlab需要文件路径）
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            tmp_path = tmp.name
+            img.save(tmp_path, format='PNG')
         
-        # 绘制到PDF
-        c.drawImage(temp_buffer, x, y, width=qr_size, height=qr_size * 1.2)
+        # 绘制到PDF（使用文件路径）
+        c.drawImage(tmp_path, x, y, width=qr_size, height=qr_size * 1.2)
         
         # 翻页
         if (i + 1) % qr_per_page == 0 and i < len(codes) - 1:
@@ -173,6 +175,12 @@ def generate_print_layout(codes, base_url, layout='a4', cols=5, rows=8):
         
         if (i + 1) % 100 == 0:
             print(f"已排版 {i + 1}/{len(codes)} 个二维码...")
+        
+        # 清理临时文件
+        try:
+            os.unlink(tmp_path)
+        except:
+            pass
     
     c.save()
     buffer.seek(0)
