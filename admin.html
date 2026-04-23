@@ -339,6 +339,18 @@
                                     style="background:#e8e8e8;color:#667eea;font-weight:bold;text-align:center;" value="1000">
                             </div>
                         </div>
+                        <!-- 已用号段提示 -->
+                        <div id="usedRangesArea" style="margin-top:12px;display:none;">
+                            <div style="font-size:13px;color:#c62828;background:#ffebee;padding:10px;border-radius:8px;">
+                                ⚠️ <strong>已占用号段（不可重复使用）：</strong>
+                                <div id="usedRangesText" style="margin-top:6px;"></div>
+                            </div>
+                        </div>
+                        <div id="conflictWarning" style="margin-top:8px;display:none;">
+                            <div style="font-size:13px;color:#e65100;background:#fff3e0;padding:10px;border-radius:8px;border-left:4px solid #ff9800;">
+                                🔁 <span id="conflictText"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -974,16 +986,76 @@
             }
         }
         
-        // 号段数量实时计算
-        ['batch_start', 'batch_end'].forEach(id => {
+        // 号段数量实时计算 + 冲突检测
+        ['batch_start', 'batch_end', 'batch_prefix'].forEach(id => {
             const el = document.getElementById(id);
             el?.addEventListener('input', () => {
                 const s = parseInt(document.getElementById('batch_start').value) || 0;
                 const e = parseInt(document.getElementById('batch_end').value) || 0;
                 const total = e >= s ? (e - s + 1) : 0;
                 document.getElementById('batch_total').value = total.toLocaleString();
+                checkBatchConflict();
             });
         });
+        
+        // 加载已用号段
+        loadUsedRanges();
+        
+        async function loadUsedRanges() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/products/used-ranges`);
+                const data = await res.json();
+                window._usedRanges = data.ranges;
+                
+                const area = document.getElementById('usedRangesArea');
+                const textEl = document.getElementById('usedRangesText');
+                if (Object.keys(data.ranges).length > 0) {
+                    area.style.display = 'block';
+                    let html = '';
+                    for (const [pfx, info] of Object.entries(data.ranges)) {
+                        html += `<div style="margin-bottom:4px;"><strong>${pfx}</strong>：`;
+                        html += info.intervals.map(iv => 
+                            `${iv.start}~${iv.end}（${iv.count}个）`
+                        ).join(', ');
+                        html += ` 共${info.total}个</div>`;
+                    }
+                    textEl.innerHTML = html;
+                } else {
+                    area.style.display = 'none';
+                }
+                checkBatchConflict();
+            } catch(e) { console.error('加载已用号段失败', e); }
+        }
+        
+        function checkBatchConflict() {
+            const prefix = (document.getElementById('batch_prefix')?.value || '').trim();
+            const start = parseInt(document.getElementById('batch_start')?.value) || 0;
+            const end = parseInt(document.getElementById('batch_end')?.value) || 0;
+            const warnEl = document.getElementById('conflictWarning');
+            const textEl = document.getElementById('conflictText');
+            
+            if (!prefix || !start || !end || !window._usedRanges) {
+                warnEl.style.display = 'none'; return;
+            }
+            
+            const ranges = window._usedRanges[prefix];
+            if (!ranges) { warnEl.style.display = 'none'; return; }
+            
+            let conflicts = [];
+            for (const iv of ranges.intervals) {
+                // 检查区间重叠: [start,end] 与 [iv.start, iv.end]
+                if (!(end < iv.start || start > iv.end)) {
+                    conflicts.push(`${iv.start}~${iv.end}`);
+                }
+            }
+            
+            if (conflicts.length > 0) {
+                textEl.textContent = `与已用号段 ${conflicts.join('、')} 存在重叠，请调整编号范围！`;
+                warnEl.style.display = 'block';
+            } else {
+                warnEl.style.display = 'none';
+            }
+        }
 
         function resetForm() {
             document.getElementById('productForm').reset();

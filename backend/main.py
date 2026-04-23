@@ -109,6 +109,45 @@ def root():
     return {"status": "ok", "message": "农产品溯源系统 API 运行中"}
 
 
+@app.get("/api/v1/products/used-ranges")
+def get_used_ranges(prefix: str = "", db: Session = Depends(get_db)):
+    """查询已使用的编码范围（用于号段录入时避免重复）"""
+    from models import Product
+    
+    query = db.query(Product.code)
+    if prefix:
+        query = query.filter(Product.code.like(f"{prefix}%"))
+    codes = [r[0] for r in query.all()]
+    
+    # 按前缀分组，找出连续区间
+    from collections import defaultdict
+    groups = defaultdict(list)
+    import re
+    for code in codes:
+        m = re.match(r'^(.*?)(\d+)$', code)
+        if m:
+            groups[m.group(1)].append(int(m.group(2)))
+    
+    ranges = {}
+    for pfx, nums in groups.items():
+        nums = sorted(set(nums))
+        if not nums:
+            continue
+        intervals = []
+        start = nums[0]
+        prev = nums[0]
+        for n in nums[1:]:
+            if n == prev + 1:
+                prev = n
+            else:
+                intervals.append({"start": start, "end": prev, "count": prev - start + 1})
+                start = prev = n
+        intervals.append({"start": start, "end": prev, "count": prev - start + 1})
+        ranges[pfx] = {"total": len(nums), "intervals": intervals}
+    
+    return {"prefix": prefix or "(全部)", "total_codes": len(codes), "ranges": ranges}
+
+
 @app.post("/api/v1/products/batch")
 def create_batch_products(batch: BatchCreate, db: Session = Depends(get_db)):
     """
@@ -118,8 +157,8 @@ def create_batch_products(batch: BatchCreate, db: Session = Depends(get_db)):
     """
     from models import Product, FarmInfo, ProductionRecord, QualityRecord
     
-    if batch.end - batch.start + 1 > 10000:
-        raise HTTPException(status_code=400, detail="单批次不能超过10000个")
+    if batch.end - batch.start + 1 > 50000:
+        raise HTTPException(status_code=400, detail="单批次不能超过50000个")
     
     if batch.start > batch.end:
         raise HTTPException(status_code=400, detail="起始编号不能大于结束编号")
