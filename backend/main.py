@@ -143,23 +143,29 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="产品编码已存在")
     
     # 创建产品
-    db_product = Product(**product.model_dump())
+    product_data = product.model_dump()
+    # 移除嵌套对象
+    farm_info_data = product_data.pop('farm_info', None)
+    production_records_data = product_data.pop('production_records', None)
+    quality_records_data = product_data.pop('quality_records', None)
+    
+    db_product = Product(**product_data)
     db.add(db_product)
     db.flush()
     
     # 创建农场信息
-    if product.farm_info:
-        farm_info = FarmInfo(product_id=db_product.id, **product.farm_info.model_dump())
+    if farm_info_data:
+        farm_info = FarmInfo(product_id=db_product.id, **farm_info_data)
         db.add(farm_info)
     
     # 创建生产记录
-    for record in product.production_records or []:
-        prod_record = ProductionRecord(product_id=db_product.id, **record.model_dump())
+    for record in production_records_data or []:
+        prod_record = ProductionRecord(product_id=db_product.id, **record)
         db.add(prod_record)
     
     # 创建质检记录
-    for record in product.quality_records or []:
-        quality_record = QualityRecord(product_id=db_product.id, **record.model_dump())
+    for record in quality_records_data or []:
+        quality_record = QualityRecord(product_id=db_product.id, **record)
         db.add(quality_record)
     
     db.commit()
