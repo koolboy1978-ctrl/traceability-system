@@ -41,6 +41,7 @@ class FarmInfoBase(BaseModel):
 
 class ProductionRecordBase(BaseModel):
     stage: str
+    date: Optional[str] = None
     operator: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
