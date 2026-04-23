@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>农产品溯源 - 管理后台</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        /* 录入表单样式 */
+        .form-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .form-card h3 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #555;
+            font-size: 14px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        /* 动态添加的记录 */
+        .record-item {
+            background: #f9f9f9;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .record-item .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        /* 二维码生成 */
+        .qr-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .qr-input {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .qr-output {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        #qrcode {
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            display: inline-block;
+        }
+        .qr-url {
+            word-break: break-all;
+            color: #667eea;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        /* 产品列表 */
+        .product-list {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+        }
+        .product-item:last-child { border-bottom: none; }
+        .product-info h4 { color: #333; margin-bottom: 4px; }
+        .product-info p { color: #999; font-size: 14px; }
+        .product-actions button {
+            margin-left: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-view { background: #e3f2fd; color: #1976d2; }
+        .btn-qr { background: #f3e5f5; color: #7b1fa2; }
+        
+        /* 提示消息 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+        }
+        .toast.success { background: #4caf50; }
+        .toast.error { background: #f44336; }
+        
+        @media (max-width: 768px) {
+            .qr-section { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌾 农产品溯源管理系统</h1>
+        <p>录入产品信息 · 生成溯源二维码</p>
+    </div>
+    
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('add')">➕ 录入产品</button>
+            <button class="tab" onclick="switchTab('list')">📋 产品列表</button>
+            <button class="tab" onclick="switchTab('qr')">📱 生成二维码</button>
+        </div>
+        
+        <!-- 录入产品 -->
+        <div id="panel-add" class="panel active">
+            <form id="productForm">
+                <!-- 基本信息 -->
+                <div class="form-card">
+                    <h3>📦 基本信息</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>产品编码 *</label>
+                            <input type="text" id="code" placeholder="如：APPLE001" required>
+                        </div>
+                        <div class="form-group">
+                            <label>产品名称 *</label>
+                            <input type="text" id="name" placeholder="如：烟台红富士苹果" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>产品类别</label>
+                            <select id="category">
+                                <option value="水果">水果</option>
+                                <option value="蔬菜">蔬菜</option>
+                                <option value="粮食">粮食</option>
+                                <option value="畜禽">畜禽</option>
+                                <option value="水产">水产</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>品牌名称</label>
+                            <input type="text" id="brand" placeholder="如：阳光果园">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>产地</label>
+                            <input type="text" id="origin" placeholder="如：山东省烟台市">
+                        </div>
+                        <div class="form-group">
+                            <label>产品图片URL</label>
+                            <input type="text" id="image_url" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>产品描述</label>
+                        <textarea id="description" placeholder="描述产品特点、口感、种植方式等..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- 农场信息 -->
+                <div class="form-card">
+                    <h3>🚜 农场信息</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>农场名称</label>
+                            <input type="text" id="farm_name" placeholder="如：阳光有机果园">
+                        </div>
+                        <div class="form-group">
+                            <label>农场位置</label>
+                            <input type="text" id="farm_location" placeholder="如：山东省烟台市栖霞镇">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>种植面积（亩）</label>
+                            <input type="number" id="farm_area" placeholder="50">
+                        </div>
+                        <div class="form-group">
+                            <label>认证信息</label>
+                            <input type="text" id="farm_certification" placeholder="如：有机食品认证">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>品牌故事</label>
+                        <textarea id="farm_story" placeholder="讲述农场历史、种植理念..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- 生产记录 -->
+                <div class="form-card">
+                    <h3>📝 生产记录</h3>
+                    <div id="productionRecords"></div>
+                    <button type="button" class="btn-secondary" onclick="addProductionRecord()">+ 添加生产记录</button>
+                </div>
+                
+                <!-- 质检记录 -->
+                <div class="form-card">
+                    <h3>✅ 质检记录</h3>
+                    <div id="qualityRecords"></div>
+                    <button type="button" class="btn-secondary" onclick="addQualityRecord()">+ 添加质检记录</button>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="submit" class="btn-primary">💾 保存产品信息</button>
+                    <button type="button" class="btn-secondary" onclick="resetForm()">重置</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 产品列表 -->
+        <div id="panel-list" class="panel">
+            <div class="product-list">
+                <h3 style="margin-bottom: 20px;">📋 所有产品</h3>
+                <div id="productListContent">
+                    <p style="color: #999; text-align: center;">加载中...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 生成二维码 -->
+        <div id="panel-qr" class="panel">
+            <div class="qr-section">
+                <div class="qr-input">
+                    <h3 style="margin-bottom: 20px;">📱 生成溯源二维码</h3>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>选择产品</label>
+                        <select id="qrProductSelect" onchange="updateQRCode()">
+                            <option value="">-- 请选择产品 --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>或手动输入产品编码</label>
+                        <input type="text" id="qrCodeInput" placeholder="如：DEMO001" oninput="updateQRCode()">
+                    </div>
+                    <div class="form-group">
+                        <label>二维码尺寸</label>
+                        <select id="qrSize" onchange="updateQRCode()">
+                            <option value="150">小 (150x150)</option>
+                            <option value="200" selected>中 (200x200)</option>
+                            <option value="300">大 (300x300)</option>
+                            <option value="400">超大 (400x400)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="qr-output">
+                    <h3 style="margin-bottom: 20px;">二维码预览</h3>
+                    <div id="qrcode"></div>
+                    <p class="qr-url" id="qrUrl"></p>
+                    <button class="btn-primary" onclick="downloadQR()" style="margin-top: 20px;">⬇️ 下载二维码</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+    
+    <script>
+        const API_BASE = 'https://traceability-system-production-2209.up.railway.app';
+        let products = [];
+        let currentQR = null;
+        
+        // 切换标签
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(`panel-${tab}`).classList.add('active');
+            
+            if (tab === 'list') loadProducts();
+            if (tab === 'qr') loadProductsForQR();
+        }
+        
+        // 显示提示
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+        
+        // 添加生产记录
+        function addProductionRecord(data = {}) {
+            const container = document.getElementById('productionRecords');
+            const id = Date.now();
+            const div = document.createElement('div');
+            div.className = 'record-item';
+            div.innerHTML = `
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">删除</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>阶段名称</label>
+                        <input type="text" class="prod-stage" placeholder="如：播种" value="${data.stage || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>操作日期</label>
+                        <input type="date" class="prod-date" value="${data.date || ''}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>操作人员</label>
+                        <input type="text" class="prod-operator" placeholder="如：张师傅" value="${data.operator || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>操作描述</label>
+                        <input type="text" class="prod-desc" placeholder="如：春季播种，施用有机肥" value="${data.description || ''}">
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+        
+        // 添加质检记录
+        function addQualityRecord(data = {}) {
+            const container = document.getElementById('qualityRecords');
+            const div = document.createElement('div');
+            div.className = 'record-item';
+            div.innerHTML = `
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">删除</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>检测日期</label>
+                        <input type="date" class="quality-date" value="${data.check_date || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>检测结果</label>
+                        <select class="quality-result">
+                            <option value="合格" ${data.result === '合格' ? 'selected' : ''}>合格</option>
+                            <option value="不合格" ${data.result === '不合格' ? 'selected' : ''}>不合格</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>检测员</label>
+                        <input type="text" class="quality-inspector" placeholder="如：李检测员" value="${data.inspector || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <input type="text" class="quality-notes" placeholder="如：农残检测合格" value="${data.notes || ''}">
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+        
+        // 提交表单
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 收集生产记录
+            const productionRecords = [];
+            document.querySelectorAll('#productionRecords .record-item').forEach(item => {
+                productionRecords.push({
+                    stage: item.querySelector('.prod-stage').value,
+                    date: item.querySelector('.prod-date').value,
+                    operator: item.querySelector('.prod-operator').value,
+                    description: item.querySelector('.prod-desc').value
+                });
+            });
+            
+            // 收集质检记录
+            const qualityRecords = [];
+            document.querySelectorAll('#qualityRecords .record-item').forEach(item => {
+                qualityRecords.push({
+                    check_date: item.querySelector('.quality-date').value,
+                    result: item.querySelector('.quality-result').value,
+                    inspector: item.querySelector('.quality-inspector').value,
+                    notes: item.querySelector('.quality-notes').value
+                });
+            });
+            
+            const data = {
+                code: document.getElementById('code').value,
+                name: document.getElementById('name').value,
+                category: document.getElementById('category').value,
+                brand: document.getElementById('brand').value,
+                origin: document.getElementById('origin').value,
+                description: document.getElementById('description').value,
+                image_url: document.getElementById('image_url').value,
+                farm_info: {
+                    farm_name: document.getElementById('farm_name').value,
+                    location: document.getElementById('farm_location').value,
+                    area: parseFloat(document.getElementById('farm_area').value) || null,
+                    certification: document.getElementById('farm_certification').value,
+                    story: document.getElementById('farm_story').value
+                },
+                production_records: productionRecords,
+                quality_records: qualityRecords
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/products`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showToast('✅ 产品录入成功！');
+                    resetForm();
+                } else {
+                    const err = await response.json();
+                    showToast('❌ ' + (err.detail || '录入失败'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ 网络错误：' + error.message, 'error');
+            }
+        });
+        
+        // 重置表单
+        function resetForm() {
+            document.getElementById('productForm').reset();
+            document.getElementById('productionRecords').innerHTML = '';
+            document.getElementById('qualityRecords').innerHTML = '';
+        }
+        
+        // 加载产品列表
+        async function loadProducts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/products`);
+                products = await response.json();
+                
+                const container = document.getElementById('productListContent');
+                if (products.length === 0) {
+                    container.innerHTML = '<p style="color: #999; text-align: center;">暂无产品，请先录入</p>';
+                    return;
+                }
+                
+                container.innerHTML = products.map(p => `
+                    <div class="product-item">
+                        <div class="product-info">
+                            <h4>${p.name}</h4>
+                            <p>编码：${p.code} | 类别：${p.category || '未分类'} | 产地：${p.origin || '未知'}</p>
+                        </div>
+                        <div class="product-actions">
+                            <button class="btn-view" onclick="viewProduct('${p.code}')">查看</button>
+                            <button class="btn-qr" onclick="generateQRFor('${p.code}')">二维码</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('productListContent').innerHTML = 
+                    '<p style="color: #f44336; text-align: center;">加载失败：' + error.message + '</p>';
+            }
+        }
+        
+        // 查看产品
+        function viewProduct(code) {
+            window.open(`https://koolboy1978-ctrl.github.io/traceability-system/?code=${code}`, '_blank');
+        }
+        
+        // 加载产品到二维码选择框
+        async function loadProductsForQR() {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/products`);
+                products = await response.json();
+                
+                const select = document.getElementById('qrProductSelect');
+                select.innerHTML = '<option value="">-- 请选择产品 --</option>' +
+                    products.map(p => `<option value="${p.code}">${p.name} (${p.code})</option>`).join('');
+            } catch (error) {
+                console.error('加载产品失败', error);
+            }
+        }
+        
+        // 更新二维码
+        function updateQRCode() {
+            const select = document.getElementById('qrProductSelect').value;
+            const input = document.getElementById('qrCodeInput').value;
+            const code = select || input;
+            
+            if (!code) return;
+            
+            const size = parseInt(document.getElementById('qrSize').value);
+            const qrUrl = `https://koolboy1978-ctrl.github.io/traceability-system/?code=${code}`;
+            
+            document.getElementById('qrUrl').textContent = qrUrl;
+            
+            // 清除旧二维码
+            const container = document.getElementById('qrcode');
+            container.innerHTML = '';
+            
+            // 生成新二维码
+            currentQR = new QRCode(container, {
+                text: qrUrl,
+                width: size,
+                height: size,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+        
+        // 为指定产品生成二维码
+        function generateQRFor(code) {
+            switchTab('qr');
+            document.getElementById('qrCodeInput').value = code;
+            updateQRCode();
+        }
+        
+        // 下载二维码
+        function downloadQR() {
+            const canvas = document.querySelector('#qrcode canvas');
+            if (!canvas) {
+                showToast('请先生成二维码', 'error');
+                return;
+            }
+            
+            const link = document.createElement('a');
+            link.download = `溯源二维码_${document.getElementById('qrCodeInput').value || 'product'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 初始化：添加默认记录
+        addProductionRecord();
+        addQualityRecord();
+    </script>
+</body>
+</html>
