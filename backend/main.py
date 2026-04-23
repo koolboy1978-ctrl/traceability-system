@@ -100,8 +100,23 @@ class BatchCreate(BaseModel):
 
 @app.on_event("startup")
 def startup_event():
-    """启动时初始化数据库"""
+    """启动时初始化数据库 + 迁移新字段"""
     init_db()
+    # PostgreSQL 下自动添加新字段（兼容已有表）
+    import os
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url.startswith("postgresql"):
+        from sqlalchemy import text
+        from database import engine
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT"))
+                conn.execute(text("ALTER TABLE production_records ADD COLUMN IF NOT EXISTS image_url TEXT"))
+                conn.execute(text("ALTER TABLE quality_records ADD COLUMN IF NOT EXISTS report_url TEXT"))
+                conn.execute(text("ALTER TABLE farm_infos ADD COLUMN IF NOT EXISTS cert_image TEXT"))
+            print("✅ 数据库字段迁移完成")
+        except Exception as e:
+            print(f"⚠️ 迁移跳过: {e}")
 
 
 @app.get("/")
