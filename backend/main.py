@@ -1,15 +1,23 @@
 """
 农产品溯源系统 - FastAPI 主程序
 """
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+import os
+import shutil
+import uuid
+import io
 
 from database import get_db, init_db, engine, Base
+
+# 上传文件存储路径
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -209,6 +217,106 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.delete(product)
     db.commit()
     return {"message": "删除成功"}
+
+
+@app.post("/api/v1/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """上传文件（质检报告等）"""
+    # 生成唯一文件名
+    file_ext = os.path.splitext(file.filename)[1]
+    unique_name = f"{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_name)
+    
+    # 保存文件
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # 返回文件URL
+    file_url = f"/uploads/{unique_name}"
+    return {"url": file_url, "filename": file.filename}
+
+
+@app.get("/uploads/{filename}")
+async def get_uploaded_file(filename: str):
+    """获取上传的文件"""
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(file_path)
+
+
+@app.post("/api/v1/batch-qr")
+async def generate_batch_qr_api(
+    prefix: str = "",
+    start: int = 1,
+    count: int = 100,
+    size: int = 300,
+    with_label: bool = True,
+    base_url: str = "https://koolboy1978-ctrl.github.io/traceability-system/"
+):
+    """
+    批量生成二维码并打包下载
+    
+    - prefix: 编码前缀，如 "APPLE"
+    - start: 起始编号
+    - count: 生成数量（建议单次不超过5000）
+    - size: 二维码尺寸
+    - with_label: 是否添加文字标签
+    """
+    if count > 10000:
+        raise HTTPException(status_code=400, detail="单次生成数量不能超过10000")
+    
+    # 生成编码列表
+    codes = [f"{prefix}{str(i).zfill(6)}" for i in range(start, start + count)]
+    
+    # 导入批量生成模块
+    from batch_qr import generate_batch_qr
+    
+    # 生成ZIP
+    zip_data = generate_batch_qr(codes, base_url, size, with_label)
+    
+    # 返回文件
+    filename = f"qrcodes_{prefix}_{start}_{start+count-1}.zip"
+    return StreamingResponse(
+        io.BytesIO(zip_data),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.post("/api/v1/batch-qr/pdf")
+async def generate_batch_qr_pdf(
+    prefix: str = "",
+    start: int = 1,
+    count: int = 100,
+    cols: int = 5,
+    rows: int = 8,
+    base_url: str = "https://koolboy1978-ctrl.github.io/traceability-system/"
+):
+    """
+    批量生成二维码并排版为PDF打印版
+    
+    - prefix: 编码前缀
+    - start: 起始编号
+    - count: 生成数量（建议单次不超过5000）
+    - cols: 每行数量
+    - rows: 每页行数
+    """
+    if count > 10000:
+        raise HTTPException(status_code=400, detail="单次生成数量不能超过10000")
+    
+    codes = [f"{prefix}{str(i).zfill(6)}" for i in range(start, start + count)]
+    
+    from batch_qr import generate_print_layout
+    
+    pdf_data = generate_print_layout(codes, base_url, cols=cols, rows=rows)
+    
+    filename = f"qrcodes_{prefix}_{start}_{start+count-1}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_data),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 if __name__ == "__main__":
