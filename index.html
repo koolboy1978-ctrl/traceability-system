@@ -5,38 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>农产品溯源查询</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        
+        .container { max-width: 600px; margin: 0 auto; }
         .header {
             text-align: center;
             color: white;
             margin-bottom: 30px;
         }
-        
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            opacity: 0.9;
-        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
         
         .search-box {
             background: white;
@@ -45,7 +28,6 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
-        
         .search-box input {
             width: 100%;
             padding: 16px;
@@ -55,11 +37,7 @@
             outline: none;
             transition: border-color 0.3s;
         }
-        
-        .search-box input:focus {
-            border-color: #667eea;
-        }
-        
+        .search-box input:focus { border-color: #667eea; }
         .search-box button {
             width: 100%;
             margin-top: 16px;
@@ -71,11 +49,14 @@
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
         }
-        
-        .search-box button:hover {
-            transform: translateY(-2px);
+        .demo-btn {
+            display: inline-block;
+            margin-top: 12px;
+            color: #667eea;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 14px;
         }
         
         .result {
@@ -85,10 +66,7 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             display: none;
         }
-        
-        .result.show {
-            display: block;
-        }
+        .result.show { display: block; }
         
         .product-header {
             display: flex;
@@ -97,7 +75,6 @@
             padding-bottom: 24px;
             border-bottom: 1px solid #eee;
         }
-        
         .product-image {
             width: 100px;
             height: 100px;
@@ -109,18 +86,8 @@
             font-size: 40px;
             flex-shrink: 0;
         }
-        
-        .product-info h2 {
-            color: #333;
-            margin-bottom: 8px;
-        }
-        
-        .product-info p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
+        .product-info h2 { color: #333; margin-bottom: 8px; }
+        .product-info p { color: #666; font-size: 14px; margin-bottom: 4px; }
         .tag {
             display: inline-block;
             background: #e8f4ff;
@@ -131,10 +98,7 @@
             margin-top: 8px;
         }
         
-        .section {
-            margin-bottom: 24px;
-        }
-        
+        .section { margin-bottom: 24px; }
         .section-title {
             font-size: 16px;
             font-weight: 600;
@@ -144,7 +108,6 @@
             align-items: center;
             gap: 8px;
         }
-        
         .section-title::before {
             content: "";
             width: 4px;
@@ -152,74 +115,39 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 2px;
         }
-        
         .farm-card {
             background: #f9f9f9;
             padding: 16px;
             border-radius: 12px;
         }
-        
-        .farm-card p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        
+        .farm-card p { color: #666; font-size: 14px; margin-bottom: 8px; }
         .story {
             background: #fff9e6;
             padding: 16px;
             border-radius: 12px;
             border-left: 4px solid #ffc107;
         }
+        .story p { color: #666; font-size: 14px; line-height: 1.6; }
         
-        .story p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        
-        .timeline {
-            position: relative;
-            padding-left: 24px;
-        }
-        
+        .timeline { position: relative; padding-left: 24px; }
         .timeline::before {
             content: "";
             position: absolute;
-            left: 6px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: #e0e0e0;
+            left: 6px; top: 0; bottom: 0;
+            width: 2px; background: #e0e0e0;
         }
-        
-        .timeline-item {
-            position: relative;
-            margin-bottom: 20px;
-        }
-        
+        .timeline-item { position: relative; margin-bottom: 20px; }
         .timeline-item::before {
             content: "";
             position: absolute;
-            left: -18px;
-            top: 4px;
-            width: 12px;
-            height: 12px;
+            left: -18px; top: 4px;
+            width: 12px; height: 12px;
             background: #667eea;
             border-radius: 50%;
             border: 2px solid white;
         }
-        
-        .timeline-item h4 {
-            color: #333;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
-        .timeline-item p {
-            color: #999;
-            font-size: 12px;
-        }
+        .timeline-item h4 { color: #333; font-size: 14px; margin-bottom: 4px; }
+        .timeline-item p { color: #999; font-size: 12px; }
         
         .quality-badge {
             display: inline-block;
@@ -229,18 +157,11 @@
             border-radius: 8px;
             font-weight: 600;
         }
-        
         .quality-badge.warning {
             background: #fff3e0;
             color: #ff9800;
         }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        
+        .loading { text-align: center; padding: 40px; color: #666; }
         .error {
             background: #ffebee;
             color: #c62828;
@@ -249,14 +170,8 @@
             text-align: center;
         }
         
-        .demo-btn {
-            display: inline-block;
-            margin-top: 12px;
-            color: #667eea;
-            text-decoration: underline;
-            cursor: pointer;
-            font-size: 14px;
-        }
+        /* 隐藏搜索框（扫码后自动查询时） */
+        .search-box.hidden { display: none; }
     </style>
 </head>
 <body>
@@ -266,24 +181,33 @@
             <p>扫描二维码，追溯农产品全程信息</p>
         </div>
         
-        <div class="search-box">
+        <div class="search-box" id="searchBox">
             <input type="text" id="productCode" placeholder="请输入产品编码或扫码">
             <button onclick="searchProduct()">查询溯源信息</button>
             <span class="demo-btn" onclick="loadDemo()">查看演示数据</span>
         </div>
         
-        <div id="result" class="result">
-            <!-- 结果将在这里显示 -->
-        </div>
+        <div id="result" class="result"></div>
     </div>
     
     <script>
-        // API 基础地址（Railway 部署地址）
         const API_BASE = 'https://traceability-system-production-2209.up.railway.app';
         
-        async function searchProduct() {
-            const code = document.getElementById('productCode').value.trim();
-            if (!code) {
+        // ===== 页面加载时自动检测URL参数 =====
+        // 二维码指向格式：?code=WYF000123
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (code) {
+                // 有编码参数 → 自动查询，隐藏输入框
+                document.getElementById('searchBox').classList.add('hidden');
+                searchProduct(code);
+            }
+        })();
+        
+        async function searchProduct(code) {
+            const queryCode = code || document.getElementById('productCode').value.trim();
+            if (!queryCode) {
                 alert('请输入产品编码');
                 return;
             }
@@ -293,7 +217,7 @@
             resultDiv.classList.add('show');
             
             try {
-                const response = await fetch(`${API_BASE}/api/v1/product/${code}`);
+                const response = await fetch(`${API_BASE}/api/v1/product/${encodeURIComponent(queryCode)}`);
                 if (!response.ok) {
                     throw new Error('产品不存在');
                 }
@@ -307,23 +231,15 @@
         function renderResult(data) {
             const resultDiv = document.getElementById('result');
             
-            // 产品图标映射
-            const iconMap = {
-                '蔬菜': '🥬',
-                '水果': '🍎',
-                '畜禽': '🐔',
-                '粮食': '🌾',
-                'default': '📦'
-            };
-            const icon = iconMap[data.category] || iconMap['default'];
+            const iconMap = {'蔬菜':'🥬','水果':'🍎','畜禽':'🐔','粮食':'🌾'};
+            const icon = iconMap[data.category] || '📦';
             
-            // 渲染 HTML
             let html = `
                 <div class="product-header">
                     <div class="product-image">${icon}</div>
                     <div class="product-info">
                         <h2>${data.name}</h2>
-                        <p>编码：${data.code}</p>
+                        <p>产品编码：<strong>${data.code}</strong></p>
                         <p>品牌：${data.brand || '暂无'}</p>
                         <p>产地：${data.origin || '暂无'}</p>
                         <span class="tag">${data.category || '农产品'}</span>
@@ -331,7 +247,6 @@
                 </div>
             `;
             
-            // 农场信息
             if (data.farm_info && data.farm_info.farm_name) {
                 html += `
                     <div class="section">
@@ -340,6 +255,7 @@
                             <p><strong>农场名称：</strong>${data.farm_info.farm_name}</p>
                             <p><strong>地理位置：</strong>${data.farm_info.location || '暂无'}</p>
                             <p><strong>认证信息：</strong>${data.farm_info.certification || '暂无'}</p>
+                            ${data.farm_info.area ? `<p><strong>种植面积：</strong>${data.farm_info.area} 亩</p>` : ''}
                         </div>
                     </div>
                 `;
@@ -348,47 +264,35 @@
                     html += `
                         <div class="section">
                             <div class="section-title">品牌故事</div>
-                            <div class="story">
-                                <p>${data.farm_info.story}</p>
-                            </div>
+                            <div class="story"><p>${data.farm_info.story}</p></div>
                         </div>
                     `;
                 }
             }
             
-            // 生产记录
             if (data.production_records && data.production_records.length > 0) {
                 html += `
                     <div class="section">
                         <div class="section-title">生产历程</div>
                         <div class="timeline">
                 `;
-                
                 data.production_records.forEach(record => {
-                    const date = new Date(record.date).toLocaleDateString('zh-CN');
+                    const date = record.date ? new Date(record.date).toLocaleDateString('zh-CN') : '';
                     html += `
                         <div class="timeline-item">
                             <h4>${record.stage}</h4>
-                            <p>${date} · ${record.operator || '未知操作员'} · ${record.description || ''}</p>
+                            <p>${date}${date ? ' · ' : ''}${record.operator || ''} ${record.description || ''}</p>
+                            ${record.image_url ? `<img src="${API_BASE}${record.image_url}" style="max-width:200px;margin-top:8px;border-radius:8px;" onerror="this.style.display='none'">` : ''}
                         </div>
                     `;
                 });
-                
-                html += `
-                        </div>
-                    </div>
-                `;
+                html += `</div></div>`;
             }
             
-            // 质检记录
             if (data.quality_records && data.quality_records.length > 0) {
-                html += `
-                    <div class="section">
-                        <div class="section-title">质检报告</div>
-                `;
-                
+                html += `<div class="section"><div class="section-title">质检报告</div>`;
                 data.quality_records.forEach(record => {
-                    const date = new Date(record.check_date).toLocaleDateString('zh-CN');
+                    const date = record.check_date ? new Date(record.check_date).toLocaleDateString('zh-CN') : '';
                     const isPass = record.result === '合格';
                     html += `
                         <div style="background:#f9f9f9;padding:16px;border-radius:12px;margin-bottom:12px;">
@@ -397,14 +301,13 @@
                                 质检员：${record.inspector || '未知'} | 日期：${date}
                             </p>
                             ${record.notes ? `<p style="color:#999;font-size:12px;margin-top:4px;">备注：${record.notes}</p>` : ''}
+                            ${record.report_url ? `<a href="${API_BASE}${record.report_url}" target="_blank" style="display:inline-block;margin-top:8px;color:#667eea;text-decoration:none;">📄 查看质检报告</a>` : ''}
                         </div>
                     `;
                 });
-                
                 html += `</div>`;
             }
             
-            // 产品描述
             if (data.description) {
                 html += `
                     <div class="section">

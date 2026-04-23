@@ -296,10 +296,54 @@
         <!-- 录入产品 -->
         <div id="panel-add" class="panel active">
             <form id="productForm">
+                <!-- 录入模式切换 -->
+                <div style="display:flex;gap:12px;margin-bottom:20px;">
+                    <button type="button" id="modeSingle" onclick="setInputMode('single')" 
+                        style="flex:1;padding:14px;border:2px solid #667eea;background:#667eea;color:white;border-radius:10px;font-size:16px;cursor:pointer;">
+                        📦 单个产品录入
+                    </button>
+                    <button type="button" id="modeBatch" onclick="setInputMode('batch')"
+                        style="flex:1;padding:14px;border:2px solid #ddd;background:white;color:#333;border-radius:10px;font-size:16px;cursor:pointer;">
+                        📋 号段批量录入
+                    </button>
+                </div>
+                
+                <!-- 号段录入区域（默认隐藏） -->
+                <div id="batchInputArea" style="display:none;">
+                    <div class="form-card" style="background:#f0f4ff;border:2px solid #667eea;">
+                        <h3>📋 号段设置</h3>
+                        <p style="color:#666;margin-bottom:16px;font-size:14px;">
+                            一次录入一整批商品，共享相同的溯源资料。<br>
+                            例如：前缀 <strong>WYF</strong>，编号 <strong>1 ~ 9999</strong> → 创建 WYF000001 到 WYF009999 共9999个编码
+                        </p>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>编码前缀 *</label>
+                                <input type="text" id="batch_prefix" placeholder="如：WYF" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label>起始编号 *</label>
+                                <input type="number" id="batch_start" value="1" min="1" max="999999">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>结束编号 *</label>
+                                <input type="number" id="batch_end" value="1000" min="1" max="999999">
+                            </div>
+                            <div class="form-group">
+                                <label>预计生成数量</label>
+                                <input type="text" id="batch_total" readonly 
+                                    style="background:#e8e8e8;color:#667eea;font-weight:bold;text-align:center;" value="1000">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 基本信息 -->
                 <div class="form-card">
                     <h3>📦 基本信息</h3>
-                    <div class="form-row">
+                    <div class="form-row" id="singleCodeRow">
                         <div class="form-group">
                             <label>产品编码 *</label>
                             <input type="text" id="code" placeholder="如：APPLE001" required>
@@ -808,45 +852,137 @@
                 });
             });
             
-            const data = {
-                code: document.getElementById('code').value,
-                name: document.getElementById('name').value,
-                category: document.getElementById('category').value,
-                brand: document.getElementById('brand').value,
-                origin: document.getElementById('origin').value,
-                description: document.getElementById('description').value,
-                image_url: document.getElementById('image_url').value,
-                farm_info: {
-                    farm_name: document.getElementById('farm_name').value,
-                    location: document.getElementById('farm_location').value,
-                    area: parseFloat(document.getElementById('farm_area').value) || null,
-                    certification: document.getElementById('farm_certification').value,
-                    story: document.getElementById('farm_story').value
-                },
-                production_records: productionRecords,
-                quality_records: qualityRecords
-            };
+            const isBatchMode = currentMode === 'batch';
             
-            try {
-                const response = await fetch(`${API_BASE}/api/v1/products`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
+            if (isBatchMode) {
+                // ===== 号段批量录入 =====
+                const prefix = document.getElementById('batch_prefix').value.trim();
+                const start = parseInt(document.getElementById('batch_start').value) || 1;
+                const end = parseInt(document.getElementById('batch_end').value) || 1000;
                 
-                if (response.ok) {
-                    showToast('✅ 产品录入成功！');
-                    resetForm();
-                } else {
-                    const err = await response.json();
-                    showToast('❌ ' + (err.detail || '录入失败'), 'error');
+                if (!prefix) { showToast('❌ 请输入编码前缀', 'error'); return; }
+                
+                const data = {
+                    prefix, start, end,
+                    name: document.getElementById('name').value,
+                    category: document.getElementById('category').value,
+                    brand: document.getElementById('brand').value,
+                    origin: document.getElementById('origin').value,
+                    description: document.getElementById('description').value,
+                    image_url: document.getElementById('image_url').value,
+                    farm_info: {
+                        farm_name: document.getElementById('farm_name').value,
+                        location: document.getElementById('farm_location').value,
+                        area: parseFloat(document.getElementById('farm_area').value) || null,
+                        certification: document.getElementById('farm_certification').value,
+                        story: document.getElementById('farm_story').value
+                    },
+                    production_records: productionRecords,
+                    quality_records: qualityRecords
+                };
+                
+                try {
+                    showToast(`⏳ 正在创建 ${end - start + 1} 个产品...`);
+                    const response = await fetch(`${API_BASE}/api/v1/products/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    const result = await response.json();
+                    if (response.ok) {
+                        showToast(`✅ ${result.message}（${result.created_count}个）`);
+                        resetForm();
+                    } else {
+                        showToast('❌ ' + (result.detail || '录入失败'), 'error');
+                    }
+                } catch (error) {
+                    showToast('❌ 网络错误：' + error.message, 'error');
                 }
-            } catch (error) {
-                showToast('❌ 网络错误：' + error.message, 'error');
+            } else {
+                // ===== 单个产品录入 =====
+                const data = {
+                    code: document.getElementById('code').value,
+                    name: document.getElementById('name').value,
+                    category: document.getElementById('category').value,
+                    brand: document.getElementById('brand').value,
+                    origin: document.getElementById('origin').value,
+                    description: document.getElementById('description').value,
+                    image_url: document.getElementById('image_url').value,
+                    farm_info: {
+                        farm_name: document.getElementById('farm_name').value,
+                        location: document.getElementById('farm_location').value,
+                        area: parseFloat(document.getElementById('farm_area').value) || null,
+                        certification: document.getElementById('farm_certification').value,
+                        story: document.getElementById('farm_story').value
+                    },
+                    production_records: productionRecords,
+                    quality_records: qualityRecords
+                };
+                
+                try {
+                    const response = await fetch(`${API_BASE}/api/v1/products`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    if (response.ok) {
+                        showToast('✅ 产品录入成功！');
+                        resetForm();
+                    } else {
+                        const err = await response.json();
+                        showToast('❌ ' + (err.detail || '录入失败'), 'error');
+                    }
+                } catch (error) {
+                    showToast('❌ 网络错误：' + error.message, 'error');
+                }
             }
         });
         
         // 重置表单
+        // 录入模式：single / batch
+        let currentMode = 'single';
+        
+        function setInputMode(mode) {
+            currentMode = mode;
+            const singleBtn = document.getElementById('modeSingle');
+            const batchBtn = document.getElementById('modeBatch');
+            const batchArea = document.getElementById('batchInputArea');
+            const singleCodeRow = document.getElementById('singleCodeRow');
+            
+            if (mode === 'batch') {
+                singleBtn.style.background = 'white';
+                singleBtn.style.color = '#333';
+                singleBtn.style.borderColor = '#ddd';
+                batchBtn.style.background = '#667eea';
+                batchBtn.style.color = 'white';
+                batchBtn.style.borderColor = '#667eea';
+                batchArea.style.display = 'block';
+                singleCodeRow.style.display = 'none';
+            } else {
+                singleBtn.style.background = '#667eea';
+                singleBtn.style.color = 'white';
+                singleBtn.style.borderColor = '#667eea';
+                batchBtn.style.background = 'white';
+                batchBtn.style.color = '#333';
+                batchBtn.style.borderColor = '#ddd';
+                batchArea.style.display = 'none';
+                singleCodeRow.style.display = 'grid';
+            }
+        }
+        
+        // 号段数量实时计算
+        ['batch_start', 'batch_end'].forEach(id => {
+            const el = document.getElementById(id);
+            el?.addEventListener('input', () => {
+                const s = parseInt(document.getElementById('batch_start').value) || 0;
+                const e = parseInt(document.getElementById('batch_end').value) || 0;
+                const total = e >= s ? (e - s + 1) : 0;
+                document.getElementById('batch_total').value = total.toLocaleString();
+            });
+        });
+
         function resetForm() {
             document.getElementById('productForm').reset();
             document.getElementById('productionRecords').innerHTML = '';

@@ -79,6 +79,22 @@ class ProductCreate(ProductBase):
     quality_records: Optional[List[QualityRecordBase]] = []
 
 
+class BatchCreate(BaseModel):
+    """号段批量录入：一个批次的产品共享相同的溯源资料"""
+    prefix: str  # 编码前缀，如 "WYF"
+    start: int   # 起始编号，如 1
+    end: int     # 结束编号，如 9999
+    name: str    # 产品名称
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    origin: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    farm_info: Optional[FarmInfoBase] = None
+    production_records: Optional[List[ProductionRecordBase]] = []
+    quality_records: Optional[List[QualityRecordBase]] = []
+
+
 # ==================== API 接口 ====================
 
 @app.on_event("startup")
@@ -93,17 +109,115 @@ def root():
     return {"status": "ok", "message": "农产品溯源系统 API 运行中"}
 
 
+@app.post("/api/v1/products/batch")
+def create_batch_products(batch: BatchCreate, db: Session = Depends(get_db)):
+    """
+    号段批量录入：一次创建一批产品，共享相同的溯源资料
+    
+    例如：prefix="WYF", start=1, end=9999 → 创建 WYF000001 ~ WYF009999
+    """
+    from models import Product, FarmInfo, ProductionRecord, QualityRecord
+    
+    if batch.end - batch.start + 1 > 10000:
+        raise HTTPException(status_code=400, detail="单批次不能超过10000个")
+    
+    if batch.start > batch.end:
+        raise HTTPException(status_code=400, detail="起始编号不能大于结束编号")
+    
+    created = []
+    errors = []
+    
+    for i in range(batch.start, batch.end + 1):
+        code = f"{batch.prefix}{str(i).zfill(6)}"
+        
+        # 检查是否已存在
+        existing = db.query(Product).filter(Product.code == code).first()
+        if existing:
+            errors.append(f"{code} 已存在，跳过")
+            continue
+        
+        # 创建产品（只存编码和名称等基本信息）
+        product_data = {
+            "code": code,
+            "name": batch.name,
+            "category": batch.category,
+            "brand": batch.brand,
+            "origin": batch.origin,
+            "description": batch.description,
+            "image_url": batch.image_url,
+        }
+        db_product = Product(**product_data)
+        db.add(db_product)
+        db.flush()
+        
+        # 只给第一个产品创建详细关联数据（农场、生产记录、质检）
+        if i == batch.start and batch.farm_info:
+            farm_info = FarmInfo(product_id=db_product.id, **batch.farm_info.model_dump())
+            db.add(farm_info)
+        
+        if i == batch.start:
+            for record in batch.production_records or []:
+                rd = record.model_dump()
+                if 'date' in rd and rd['date']:
+                    rd['date'] = datetime.fromisoformat(rd['date'].replace('Z', '+00:00'))
+                prod_record = ProductionRecord(product_id=db_product.id, **rd)
+                db.add(prod_record)
+            
+            for record in batch.quality_records or []:
+                rd = record.model_dump()
+                if 'check_date' in rd and rd['check_date']:
+                    rd['check_date'] = datetime.fromisoformat(rd['check_date'].replace('Z', '+00:00'))
+                quality_record = QualityRecord(product_id=db_product.id, **rd)
+                db.add(quality_record)
+        
+        created.append(code)
+    
+    db.commit()
+    
+    return {
+        "message": f"批量创建完成",
+        "created_count": len(created),
+        "codes_range": f"{batch.prefix}{str(batch.start).zfill(6)} ~ {batch.prefix}{str(batch.end).zfill(6)}",
+        "errors": errors[:10]  # 最多返回前10条错误
+    }
+
+
 @app.get("/api/v1/product/{code}")
 def get_product_by_code(code: str, db: Session = Depends(get_db)):
-    """根据产品编码查询产品信息（扫码后调用的接口）"""
+    """根据产品编码查询产品信息（扫码后调用的接口）
+    
+    支持两种模式：
+    1. 精确匹配：找到该编码的产品
+    2. 号段匹配：如果精确匹配失败，尝试找到同一批次的首个产品
+    """
     from models import Product
     
+    # 先精确匹配
     product = db.query(Product).filter(Product.code == code).first()
+    
+    if not product:
+        # 号段匹配：提取前缀，找同前缀的第一个产品
+        # 编码格式：前缀 + 6位数字，如 WYF000123
+        import re
+        match = re.match(r'^(.*?)(\d+)$', code)
+        if match:
+            prefix = match.group(1)
+            # 找到同前缀的最早录入产品
+            product = db.query(Product) \
+                .filter(Product.code.like(f"{prefix}%")) \
+                .order_by(Product.id.asc()) \
+                .first()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="产品不存在")
+    
+    # 返回时把实际编码替换为用户查询的编码
+    queried_code = code
     if not product:
         raise HTTPException(status_code=404, detail="产品不存在")
     
     return {
-        "code": product.code,
+        "code": queried_code,  # 显示用户查询的编码
         "name": product.name,
         "category": product.category,
         "brand": product.brand,
